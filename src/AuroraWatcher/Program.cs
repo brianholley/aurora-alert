@@ -71,6 +71,9 @@ namespace AuroraWatcher
 	{
 		private const string EmailAddress = "";
 		private const string EmailPassword = "";
+		private const string PhoneNumber = "";
+		private const string VerizonTextAddress = "@vtext.com";
+		private const string AttTextAddress = "@txt.att.net";
 
 		private const string DataUrl = "http://www.swpc.noaa.gov/alerts/archive/current_month.html";
 
@@ -146,8 +149,8 @@ namespace AuroraWatcher
 							smtp.Credentials = new NetworkCredential(EmailAddress, EmailPassword);
 							smtp.EnableSsl = true;
 
-							string verizon = "vtext.com";
-							MailMessage message = new MailMessage("bholley@gmail.com", "4252335014@txt.att.net", alert.Subject(), alert.Body());
+							string textAddress = PhoneNumber + AttTextAddress;
+							MailMessage message = new MailMessage(EmailAddress, textAddress, alert.Subject(), alert.Body());
 							smtp.Send(message);
 							break;
 						}
