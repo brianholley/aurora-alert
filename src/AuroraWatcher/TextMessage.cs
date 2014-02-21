@@ -42,6 +42,7 @@ namespace AuroraWatcher
 			string textAddress = toPhoneNumber + ProviderToEmailHost(provider);
 			var message = new MailMessage(fromEmailAddress, textAddress, subject, body);
 			smtp.Send(message);
+			return true;
 		}
 	}
 }
