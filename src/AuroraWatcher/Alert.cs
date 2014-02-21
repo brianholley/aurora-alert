@@ -48,14 +48,14 @@ namespace AuroraWatcher
 			return false;
 		}
 
-		public string Subject()
+		public string Subject
 		{
-			return MessageCode;
+			get { return MessageCode; }
 		}
 
-		public string Body()
+		public string Body
 		{
-			return Details;
+			get { return Details; }
 		}
 	}
 

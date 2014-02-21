@@ -1,48 +1,60 @@
 ﻿using System;
+using System.Configuration;
+using System.Globalization;
 using System.Net;
 using System.Net.Mail;
 
 namespace AuroraWatcher
 {
-	enum Provider
-	{
-		Unknown,
-		ATT,
-		Verizon,
-		TMobile
-	}
-
 	static class TextMessage
 	{
-		private static string ProviderToEmailHost(Provider provider)
+		public static bool Send(string toSmsEmail, string fromEmail, string subject, string body)
 		{
-			string emailHost = "";
-			switch (provider)
+			string host = ConfigurationManager.AppSettings["Smtp.ServerHost"];
+			if (string.IsNullOrEmpty(host))
 			{
-				case Provider.ATT:
-					emailHost = "@txt.att.net";
-					break;
-				case Provider.Verizon:
-					emailHost = "@vtext.com";
-					break;
-				case Provider.TMobile:
-					emailHost = "";
-					break;
+				Log.Write("Can't send SMS - no host");
+				return false;
 			}
-			return emailHost;
-		}
 
-		public static bool Send(string toPhoneNumber, Provider provider, string fromEmailAddress, string emailPassword, string subject, string body)
-		{
-			var smtp = new SmtpClient("smtp.gmail.com", 587);
+			int port;
+			string portSetting = ConfigurationManager.AppSettings["Smtp.ServerPort"];
+			if (!int.TryParse(portSetting, out port))
+			{
+				Log.Write("Can't send SMS - no port");
+				return false;
+			}
+
+			string smtpEmail = ConfigurationManager.AppSettings["Smtp.EmailAddress"];
+			if (string.IsNullOrEmpty(smtpEmail))
+			{
+				Log.Write("Can't send SMS - no smtp address credentials");
+				return false;
+			}
+
+			string smtpPassword = ConfigurationManager.AppSettings["Smtp.EmailPassword"];
+			if (string.IsNullOrEmpty(smtpPassword))
+			{
+				Log.Write("Can't send SMS - no smtp password credentials");
+				return false;
+			}
+
+			var smtp = new SmtpClient(host, port);
 			smtp.UseDefaultCredentials = false;
-			smtp.Credentials = new NetworkCredential(fromEmailAddress, emailPassword);
+			smtp.Credentials = new NetworkCredential(smtpEmail, smtpPassword);
 			smtp.EnableSsl = true;
 
-			string textAddress = toPhoneNumber + ProviderToEmailHost(provider);
-			var message = new MailMessage(fromEmailAddress, textAddress, subject, body);
-			smtp.Send(message);
-			return true;
+			try
+			{
+				var message = new MailMessage(fromEmail, toSmsEmail, subject, body);
+				smtp.Send(message);
+				return true;
+			}
+			catch (Exception e)
+			{
+				Log.Write("Failed to send SMS - {0}", e);
+				return false;
+			}
 		}
 	}
 }
