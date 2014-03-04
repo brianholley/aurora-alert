@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace AuroraWatcher
 {
-	static class Scheduler
+	public static class Scheduler
 	{
 		public static void Run()
 		{
@@ -21,7 +21,14 @@ namespace AuroraWatcher
 
 			while (true)
 			{
-				Iteration();
+				try
+				{
+					Iteration();
+				}
+				catch (Exception e)
+				{
+					Log.Write("Exception occurred: {0}", e);
+				}
 
 				ConfigurationManager.AppSettings["Scheduler.LastRunTime"] = DateTime.UtcNow.ToString();
 				Thread.Sleep(interval * 1000);
@@ -33,49 +40,43 @@ namespace AuroraWatcher
 			DateTime lastRunTime;
 			string lastRunSetting = ConfigurationManager.AppSettings["Scheduler.LastRunTime"];
 			if (!DateTime.TryParse(lastRunSetting, out lastRunTime))
-			{
 				lastRunTime = DateTime.UtcNow;
-			}
 			
 			Log.Write("Scheduler woke up. Task start time: {0}, Last run time: {1}", DateTime.UtcNow, lastRunTime);
-			
+
+			bool shouldAlert;
+			if (!bool.TryParse(ConfigurationManager.AppSettings["Alert.ShouldAlert"], out shouldAlert))
+				shouldAlert = false;
+			Log.Write("Should alert: {0}", shouldAlert);
+
 			string fromEmail = ConfigurationManager.AppSettings["TextMessage.FromEmailAddress"];
-			if (string.IsNullOrEmpty(fromEmail))
-			{
-				Log.Write("TextMessage.FromEmailAddress not found");
-				return;
-			}
+			Log.Write("Sending email from: {0}", fromEmail);
 
 			string toSetting = ConfigurationManager.AppSettings["TextMessage.ToPhoneNumbers"];
-			if (string.IsNullOrEmpty(toSetting))
-			{
-				Log.Write("TextMessage.ToPhoneNumbers not found");
-				return;
-			}
-
-			string[] to = toSetting.Split(new []{','}, StringSplitOptions.RemoveEmptyEntries);
-						
-			List<Alert> alerts = SpaceWeatherDataSource.FetchCurrentAlerts();
+			string[] to = toSetting != null ? toSetting.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries) : null;
+			Log.Write("Sending to: {0}", toSetting);
+			
+			List<Alert> alerts = SpaceWeatherDataSource.FetchCurrentAlertsSince(lastRunTime);
 			Log.Write("Data source found {0} alerts", alerts.Count);
 			
 			bool alerted = false;
 			foreach (var alert in alerts.OrderByDescending(a => a.IssueTime))
 			{
-				if (alert.IssueTime > lastRunTime)
+				Log.Write("Alert Serial Number: {0}", alert.SerialNumber);
+				if (shouldAlert && alert.ShouldAlert() && !string.IsNullOrEmpty(fromEmail) && to != null)
 				{
-					if (alert.ShouldAlert())
+					Log.Write("Alert should send");
+					foreach (var address in to)
 					{
-						foreach (var address in to)
+						var smsEmail = address.Trim();
+						Log.Write("Sending alert to {0}", smsEmail);
+						if (!TextMessage.Send(smsEmail, fromEmail, alert.Subject, alert.Body))
 						{
-							var smsEmail = address.Trim();
-							if (!TextMessage.Send(smsEmail, fromEmail, alert.Subject, alert.Body))
-							{
-								Log.Write("Alert sent to {0} failed", smsEmail);
-							}
+							Log.Write("Alert failed");
 						}
-						alerted = true;
-						break;
 					}
+					alerted = true;
+					break;
 				}
 			}
 

@@ -17,7 +17,7 @@ namespace AuroraWatcher
 		private const string SerialNumberField = "Serial Number";
 		private const string IssueTimeField = "Issue Time";
 
-		public static List<Alert> FetchCurrentAlerts()
+		public static List<Alert> FetchCurrentAlertsSince(DateTime lastSyncTime)
 		{
 			List<Alert> alerts = new List<Alert>();
 			try
@@ -61,7 +61,8 @@ namespace AuroraWatcher
 								}
 							}
 							alert.Details = parts[2].Replace("<br>", "").Trim();
-							alerts.Add(alert);
+							if (alert.IssueTime > lastSyncTime)
+								alerts.Add(alert);
 						}
 					}
 				}
